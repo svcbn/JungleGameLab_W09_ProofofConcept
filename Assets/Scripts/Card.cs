@@ -4,19 +4,11 @@ using UnityEngine;
 
 public class Card : MonoBehaviour
 {
-    #region public Variables
-        
-    #endregion
+    private string _name;
+    private string _description;
+    private int _cost;
 
-    #region private Variables
-        
-    #endregion
-
-    #region public Method
-        
-    #endregion
-
-    #region private Method
-        
-    #endregion
+    public string Name => _name;
+    public string Description => _description;
+    public int Cost => _cost;
 }

@@ -21,9 +21,17 @@ public class GameManager : MonoBehaviour
         EndTurn,
     }
 
-    public List<Card> deck = new List<Card>();
-    public Transform[] cardSlots;
-    public bool[] availableCardSlots;
+    List<GameObject> cardsInDeck = new List<GameObject>();
+    List<GameObject> cardsInHand = new List<GameObject>();
+    List<GameObject> cardsInDiscard = new List<GameObject>();
+
+    public Transform cardPanel;
+
+    public GameObject cardPrefab;
+
+    Color[] colors =   {new Color(0.6161445f, 0.7510408f, 0.8113208f),
+                        new Color(1f, 0.572549f, 0.6017858f),
+                        new Color(1f, 0.9771625f, 0.6367924f)};
 
     public TextMeshProUGUI deckSizeText;
     private int _deckSize;
@@ -36,11 +44,11 @@ public class GameManager : MonoBehaviour
         private set
         {
             _deckSize = value;
-            ChangeUIValue(deckSizeText, _deckSize.ToString());
+            deckSizeText.text = "Deck\n" + _deckSize;
         }
     }
 
-    public TextMeshProUGUI currentCostText;
+    public TextMeshProUGUI costText;
     private int _currentCost;
     public int CurrentCost
     {
@@ -51,7 +59,36 @@ public class GameManager : MonoBehaviour
         set
         {
             _currentCost = value;
-            ChangeUIValue(currentCostText, _currentCost.ToString());
+            costText.text = _currentCost + " / " + _maxCost;
+        }
+    }
+
+    private int _maxCost;
+    public int MaxCost
+    {
+        get
+        {
+            return _maxCost;
+        }
+        set
+        {
+            _maxCost = value;
+            costText.text = _currentCost + " / " + _maxCost;
+        }
+    }
+
+    public TextMeshProUGUI discardSizeText;
+    private int _discardSize;
+    public int DiscardSize
+    {
+        get
+        {
+            return _discardSize;
+        }
+        set
+        {
+            _discardSize = value;
+            discardSizeText.text = "Discard\n" + _discardSize;
         }
     }
 
@@ -67,13 +104,13 @@ public class GameManager : MonoBehaviour
             Destroy(this);
         }
         #endregion
-        
-        State = GameState.Title;
+
     }
 
     private void Start()
     {
 
+        ChangeState(GameState.Title);
     }
 
     public void ChangeState(GameState _state)
@@ -107,21 +144,25 @@ public class GameManager : MonoBehaviour
 
     private void OnTitle()
     {
+        MaxCost = 3;
+        CurrentCost = MaxCost;
+
         // 타이틀 진입시
+        AddCard();
 
-
+        ChangeState(GameState.PreTurn);
     }
 
     private void OnPreTurn()
     {
         // 턴 돌아올때 초기화 해야될것
-        
+        CurrentCost = MaxCost;
 
         // 턴 돌아올때 준비 해야될것
 
 
         // 턴 시작 카드뽑기
-
+        DrawCard(true);
 
     }
 
@@ -176,31 +217,121 @@ public class GameManager : MonoBehaviour
     {
         // 턴 종료시 초기화해줘야될거
 
+        Discard();
 
+        ChangeState(GameState.PreTurn);
     }
 
-    public void DrawCard()
-    {
-        if(deck.Count > 0)
-        {
-            Card randCard = deck[Random.Range(0, deck.Count)];
+    
 
-            for(int i = 0; i < availableCardSlots.Length; i++)
+    public void DrawCard(bool isTurnStart)
+    {
+
+        if(isTurnStart)
+        {
+            Discard();
+
+            for(int i = 0; i < 4; i++)
             {
-                if (availableCardSlots[i] == true)
+                if(cardsInDeck.Count < 1)
                 {
-                    randCard.gameObject.SetActive(true);
-                    randCard.transform.position = cardSlots[i].position;
-                    availableCardSlots[i] = false;
-                    deck.Remove(randCard);
-                    return;
+                    RefillDeck();
                 }
+
+                cardsInHand.Add(cardsInDeck[0]);
+                cardsInHand[cardsInHand.Count - 1].transform.SetParent(cardPanel);
+
+                cardsInDeck.Remove(cardsInDeck[0]);
+                DeckSize--;
             }
+
+            ChangeState(GameState.PlayerTurn);
+        }
+        else
+        {
+            if(cardsInHand.Count > 5)
+            {
+                return;
+            }
+
+            if (cardsInDeck.Count < 1)
+            {
+                RefillDeck();
+            }
+
+            cardsInHand.Add(cardsInDeck[0]);
+            cardsInHand[cardsInHand.Count - 1].transform.SetParent(cardPanel);
+
+            cardsInDeck.Remove(cardsInDeck[0]);
+            DeckSize--;
         }
     }
 
-    private void ChangeUIValue(TextMeshProUGUI _text, string value)
+    private void Discard()
     {
-        _text.text = value;
+        for(int i = 0; i < cardsInHand.Count; i++)
+        {
+            cardsInHand[i].transform.SetParent(this.transform, false);
+            cardsInDiscard.Add(cardsInHand[i]);
+            DiscardSize++;
+        }
+        cardsInHand.Clear();
+    }
+
+    private void AddCard()
+    {
+        // 원래는 여기서 굳이안해도되는데 임시로하는거임
+        for(int i = 0; i < 18; i++)
+        {
+            GameObject card = Instantiate(cardPrefab, this.transform);
+            var texts = card.GetComponentsInChildren<TextMeshProUGUI>();
+            texts[texts.Length - 1].text = Random.Range(0, 4).ToString();
+            var panels = card.GetComponentsInChildren<Image>();
+
+            int tempColor = Random.Range(0, 3);
+            panels[1].color = colors[tempColor];
+            panels[3].color = colors[tempColor];
+
+            cardsInDeck.Add(card);
+            DeckSize++;
+        }
+    }
+
+
+    private void RefillDeck()
+    {
+        for(int i = 0; i < cardsInDiscard.Count; i++)
+        {
+            cardsInDeck.Add(cardsInDiscard[i]);
+            DiscardSize--;
+            DeckSize++;
+        }
+        
+        cardsInDiscard.Clear();
+        cardsInDeck =  ShuffleDeck(cardsInDeck);
+    }
+
+    private List<GameObject> ShuffleDeck(List<GameObject> _deck)
+    {
+        // 덱 순서 섞어주기
+        List<GameObject> listToReturn = new List<GameObject>();
+
+        System.Random random = new();
+
+        for(int i = 0; i < _deck.Count; i++)
+        {
+            int index = random.Next(0, i + 1);
+            listToReturn.Insert(index, _deck[i]);
+        }
+
+        return listToReturn;
+    }
+
+    public void OnTurnEndButtonClicked()
+    {
+        if (State != GameState.PlayerTurn) return;
+
+        // 원랜 enemy 차례지만 그냥 넘겨버림
+        ChangeState(GameState.EndTurn);
     }
 }
